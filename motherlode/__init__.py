@@ -1,8 +1,8 @@
-"""motherlode: mine it, prove it, pan it, keep the paydirt.
+"""motherlode: prospect it, mine it, pan it, keep the paydirt.
 
-A synthesis engine for ML projects. ``mine`` generates a set from a teacher or a source,
-``prove`` makes a sample prove itself against ground truth and validates any judge against human labels,
-``pan`` keeps what passed. The output is the paydirt; the rejects are the tailings, kept with
+A synthesis engine for ML projects, in mining order. ``prospect`` validates the judge and the
+checkers on a hand-labeled sample before anything is generated at scale, ``mine`` generates a set
+from a teacher or a source, ``pan`` runs every sample through the checkers and keeps what passed. The output is the paydirt; the rejects are the tailings, kept with
 their reasons. Everything here is domain-agnostic: checkers, prompts and data live with the
 project that mines them.
 """

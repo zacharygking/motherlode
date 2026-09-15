@@ -1,12 +1,12 @@
 # motherlode
 
-Mine it, prove it, pan it, keep the paydirt.
+Prospect it, mine it, pan it, keep the paydirt.
 
-A synthetic data engine for ML projects. `mine` generates a set from a teacher or a source,
-`prove` makes a sample prove itself, the way a reserve is proven before anyone mines it, by
-checking it against ground truth and validating any judge against human labels, and `pan` keeps
-what passed. The
-output is the **paydirt**; the rejects are the **tailings**, kept with their reasons.
+A synthetic data engine for ML projects, in mining order. `prospect` validates the judge and the
+checkers on a hand-labeled sample, so you know the quality gate works before generating at scale.
+`mine` generates a set from a teacher or a source. `pan` runs every sample through the checkers
+and keeps what passed. The output is the **paydirt**; the rejects are the **tailings**, kept with
+their reasons.
 
 Everything here is domain-agnostic. The checkers, prompts, rubrics and data live with the project
 that mines them. A shared library that knows what a tyre compound is has failed at its one job.
@@ -27,8 +27,8 @@ that mines them. A shared library that knows what a tyre compound is has failed 
 uv venv --python 3.12 .venv && uv pip install -e ".[dev]"
 .venv/bin/python -m pytest -q
 
-# validate a judge against a human's labels; write the disagreements to adjudicate
-motherlode prove --human labels-zachary.jsonl --judge labels-judge.jsonl --adjudication adjudicate.jsonl
+# prospect: validate a judge against a human's labels; write the disagreements to adjudicate
+motherlode prospect --human labels-zachary.jsonl --judge labels-judge.jsonl --adjudication adjudicate.jsonl
 
 # build a grading tool from items and a rubric
 motherlode grade --items reasons.jsonl --rubric RUBRIC.md --out grade.html \
@@ -38,7 +38,7 @@ motherlode grade --items reasons.jsonl --rubric RUBRIC.md --out grade.html \
 motherlode mine specs.commentary:spec --teacher specs.commentary:teacher --out runs/commentary
 ```
 
-`check` is accepted as an alias of `prove`.
+`check` is accepted as an alias of `prospect`.
 
 ## Label files
 

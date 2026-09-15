@@ -1,11 +1,11 @@
 """Command line.
 
   motherlode mine  spec_module:spec --teacher spec_module:teacher --out runs/x    generate a set
-  motherlode prove --human labels.jsonl --judge judge.jsonl [--rater NAME]        validate a judge
+  motherlode prospect --human labels.jsonl --judge judge.jsonl [--rater NAME]     validate the judge on a labeled sample
   motherlode pan   --source runs/x/paydirt.jsonl --checks spec_module:checks --out runs/y
   motherlode grade --items items.jsonl --rubric RUBRIC.md --out grade.html --labels a b c ...
 
-``check`` is accepted as an alias of ``prove``.
+``check`` is accepted as an alias of ``prospect``.
 """
 
 from __future__ import annotations
@@ -30,14 +30,14 @@ def _load(ref: str):
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="motherlode", description="Mine it, prove it, pan it, keep the paydirt.")
+    p = argparse.ArgumentParser(prog="motherlode", description="Prospect it, mine it, pan it, keep the paydirt.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("mine", help="generate a set from a spec and a teacher")
     s.add_argument("spec"); s.add_argument("--teacher", required=True); s.add_argument("--out", required=True); s.add_argument("--limit", type=int)
 
-    for name in ("prove", "check"):
-        s = sub.add_parser(name, help="validate a judge against human labels")
+    for name in ("prospect", "check"):
+        s = sub.add_parser(name, help="validate the judge and checkers on a hand-labeled sample before mining at scale")
         s.add_argument("--human", required=True); s.add_argument("--judge", required=True); s.add_argument("--rater")
         s.add_argument("--adjudication", help="write a disagreement file to fill in")
 
@@ -54,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.cmd == "mine":
         record = mine(_load(a.spec), _load(a.teacher), a.out, limit=a.limit)
         print(json.dumps(record, indent=2))
-    elif a.cmd in ("prove", "check"):
+    elif a.cmd in ("prospect", "check"):
         human, judge = read_labels(a.human), read_labels(a.judge)
         print(json.dumps(validate_judge(human, judge, human_rater=a.rater), indent=2))
         if a.adjudication:
