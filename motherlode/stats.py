@@ -49,6 +49,38 @@ def cohen_kappa(a: Sequence[Any], b: Sequence[Any], labels: Sequence[Any] | None
     return float((po - pe) / (1.0 - pe))
 
 
+def weighted_kappa(a: Sequence[Any], b: Sequence[Any], scale: Sequence[Any], weights: str = "linear") -> float:
+    """Cohen's weighted kappa for an ordinal scale, linear or quadratic disagreement weights.
+
+    ``scale`` gives the order. Labels not on the scale raise. NaN when expected disagreement is
+    zero (both raters used one label throughout), as for the unweighted version.
+    """
+    if weights not in ("linear", "quadratic"):
+        raise ValueError("weights must be 'linear' or 'quadratic'")
+    _same_length(a, b)
+    n = len(a)
+    if n == 0:
+        return float("nan")
+    idx = {c: i for i, c in enumerate(scale)}
+    for x in (*a, *b):
+        if x not in idx:
+            raise ValueError(f"{x!r} is not on the scale {list(scale)}")
+    k = len(scale)
+    m = np.zeros((k, k))
+    for x, y in zip(a, b):
+        m[idx[x], idx[y]] += 1
+    i, j = np.indices((k, k))
+    w = np.abs(i - j) / max(k - 1, 1)
+    if weights == "quadratic":
+        w = w ** 2
+    expected = np.outer(m.sum(axis=1), m.sum(axis=0)) / n
+    d_o = float((w * m).sum())
+    d_e = float((w * expected).sum())
+    if d_e == 0:
+        return float("nan")
+    return float(1.0 - d_o / d_e)
+
+
 def krippendorff_alpha(data: Sequence[Sequence[Any]], level: str = "nominal") -> float:
     """Krippendorff's alpha for any number of raters with missing values.
 

@@ -2,83 +2,97 @@
 
 [![tests](https://github.com/zacharygking/motherlode/actions/workflows/tests.yml/badge.svg)](https://github.com/zacharygking/motherlode/actions/workflows/tests.yml)
 
-Prospect it, mine it, pan it, handpick the rest, keep the paydirt.
+Prospect it, mine it, pan it, assay and handpick the rest, keep the paydirt.
 
-A synthetic data engine for ML projects, in mining order. `prospect` validates the judge and the
-checkers on a hand-labeled sample, so you know the quality gate works before generating at scale.
-`mine` generates a set from a teacher or a source. `pan` runs every sample through the checkers
-and keeps what passed. `handpick` builds the tool a person uses to label samples by hand, blind
-and assisted, which is where the labels that prospect needs come from. The output is the
-**paydirt**; the rejects are the **tailings**, kept with their reasons.
+A data library for ML projects, in two halves, both domain-free.
 
-Everything here is domain-agnostic. The checkers, prompts, rubrics and data live with the project
-that mines them. A shared library that knows what a tyre compound is has failed at its one job.
+**The gate** makes a judge's numbers reportable. A rubric is text plus a spec of its dimensions.
+`assay` is the machine judge over a dataset of items, blind. `handpick` is the tool a person uses
+to label a sample by hand, blind and assisted, every dimension on one page. `prospect` is the
+validation: chance-corrected agreement between the person and the judge per dimension, with
+intervals, weighted for ordinal scales, ground truth as just another rater, and a template for
+adjudicating the disagreements. `paydirt` assembles the graded dataset, hashed to the items it
+grades.
+
+**The engine** makes data. `mine` generates a set from a teacher, `pan` runs every sample through
+the checkers and keeps what passed. The output is the paydirt; the rejects are the tailings,
+kept with their reasons. The engine uses the gate before it calls anything paydirt.
+
+Projects talk to motherlode through datasets: a directory with a manifest, per-file hashes and a
+whole-dataset hash, written by a producer and read by a consumer. Motherlode never imports a
+project, and a project need not import motherlode; it can write a dataset, run the commands, and
+read the graded dataset back. A shared library that knows what a tyre compound or a cap sheet is
+has failed at its one job.
+
+## The gate, end to end
+
+```
+# 1. a project writes an items dataset: items.jsonl (id, text, optional truth per dimension,
+#    any context fields), rubric.md, rubric.json, manifest.json
+# 2. blind packets for the judge
+motherlode assay pool --dataset datasets/trajectories-v6 --out work/assay
+# 3. score: a grader's JSON per key (a subagent, a person), or an API model over every key
+motherlode assay score --workspace work/assay --key 3f2a9c1e --rater claude-code:opus --scores '{"D1": {"score": 1, "rationale": "..."}, ...}'
+motherlode assay score --workspace work/assay --model claude-opus-5
+# 4. the hand-grading tool: every dimension on one page, the judge's score hidden until commit
+motherlode handpick --dataset datasets/trajectories-v6 --workspace work/assay --context packet --rater zachary --out work/grade.html
+# 5. validate, per dimension, with ground truth from the dataset as a third rater
+motherlode prospect --dataset datasets/trajectories-v6 --human work/labels-zachary.jsonl --judge work/assay/judgments.jsonl --adjudication work/adjudicate.jsonl
+# 6. the graded dataset, hashed to its source
+motherlode paydirt --dataset datasets/trajectories-v6 --workspace work/assay --human work/labels-zachary.jsonl --out datasets/trajectories-v6-graded
+```
+
+`prospect` prints one line per dimension: n, items excluded as NA, kappa with its interval,
+linear weighted kappa for ordinal scales, and agreement with ground truth where it exists. The
+headline is always the blind pass; a revised pass after seeing the judge is reported beside it.
+
+## Formats
+
+**Rubric spec** (`rubric.json`): `{"dimensions": [{"id": "D1", "name": "...", "scale": ["0", "1"], "ordinal": true, "na_allowed": false}, ...]}`.
+The rubric hash covers the text and the spec. A single-label rubric is the one-dimension case and
+`--labels a b c` on the command line is sugar for it.
+
+**Label row**, one per item, rater, dimension and pass:
+`{"item_id": "...", "rater": "zachary", "dimension": "D4", "label": "2", "rubric_hash": "...", "pass": "blind"}`.
+A row without `dimension` is the single dimension `label`. A rater named `ground_truth` is a
+rater like any other. NA is never a label in the statistics: the item is dropped from that
+dimension and the count reported.
+
+**Dataset** (`manifest.json` beside the files): name, schema (`items-v1` or `graded-v1`),
+version, producer, sources, per-file sha256, whole-dataset sha256. `read_dataset` verifies on
+read.
 
 ## What is in it
 
 | Module | What it does |
 |---|---|
-| `motherlode.synth` | `MineSpec` and `mine`: items times languages through a prompt template to a teacher, parsed, checked, written as `paydirt.jsonl`, `tailings.jsonl` and `mine.json` with the spec hash, counts, usage and cost. Resumable. `pan` re-filters any set under new checks. |
-| `motherlode.claims` | `Claim`, `Verdict`, the `Checker` protocol, `check_claims` dispatch by claim kind, and `faithfulness_report`: share verified with a bootstrap interval over items, per group if asked. Unknown kinds stay unresolved and are reported, never hidden. |
-| `motherlode.judge` | `validate_judge`: kappa between a human's blind pass and a judge, with the interval, prevalence for both, a rubric-hash consistency check, the post-reveal shift if a revealed pass exists, and Krippendorff's alpha across humans as the ceiling. `adjudication_template` writes the disagreements to fill in. |
-| `motherlode.grading` | `build_grading_tool`: one local HTML file, no server. Rubric frozen and hashed into every label, order shuffled with a recorded seed, context fields shown before labeling, hidden fields such as a judge's verdict encoded and rendered only after the blind label is committed, a revised label stored separately, JSONL export the judge module reads directly. |
-| `motherlode.stats` | Cohen's kappa, Krippendorff's alpha with missing values, a paired bootstrap, prevalence, and an agreement report whose raw-agreement field is named so nobody reports it. |
+| `motherlode.dataset` | Write and read dataset directories with manifests and hashes; JSONL helpers; ground truth as label rows. |
+| `motherlode.rubric` | `RubricSpec`, `rubric_hash`, `parse_scores` with per-dimension NA rules, `score_rows`. |
+| `motherlode.assay` | `pool` and `score`: the machine judge over an items dataset, blind, deterministic keys, workspace refuses a changed dataset or rubric. |
+| `motherlode.grading` | `build_grading_tool`: one HTML file, no server, every dimension per item, hidden fields revealed after commit, revised labels stored separately, per-tool browser storage, JSONL export. |
+| `motherlode.judge` | `validate` per dimension, `summary_table`, `adjudication_template`; `validate_judge` keeps the v0.1 single-label shape. |
+| `motherlode.stats` | Cohen's kappa, weighted kappa, Krippendorff's alpha with missing values, a paired bootstrap, prevalence, and an agreement report whose raw-agreement field is named so nobody reports it. |
+| `motherlode.synth` | `MineSpec` and `mine`; `pan` re-filters any set under new checks. Resumable, with the spec hash, counts, usage and cost in `mine.json`. |
+| `motherlode.claims` | `Claim`, `Verdict`, the `Checker` protocol, `check_claims`, `faithfulness_report`. |
 
 ## Quick start
 
 ```
 uv venv --python 3.12 .venv && uv pip install -e ".[dev]"
 .venv/bin/python -m pytest -q
-
-# prospect: validate a judge against a human's labels; write the disagreements to adjudicate
-motherlode prospect --human labels-zachary.jsonl --judge labels-judge.jsonl --adjudication adjudicate.jsonl
-
-# handpick: build the tool for labeling samples by hand
-motherlode handpick --items reasons.jsonl --rubric RUBRIC.md --out grade.html \
-  --labels sound unsupported "wrong facts" vacuous --context fact_sheet brief --hidden judge_label judge_rationale --rater zachary
-
-# mine a set: a spec and a teacher are Python objects in your project
-motherlode mine specs.commentary:spec --teacher specs.commentary:teacher --out runs/commentary
 ```
 
-`check` is accepted as an alias of `prospect`, and `grade` of `handpick`.
-
-## Label files
-
-One JSONL row per label. The judge's file has the same shape with its own `rater`.
-
-```
-{"item_id": "r17", "rater": "zachary", "label": "sound", "rubric_hash": "3f9a1c0b2e77", "pass": "blind", "ts": "..."}
-{"item_id": "r17", "rater": "zachary", "label": "unsupported", "rubric_hash": "3f9a1c0b2e77", "pass": "revealed", "ts": "..."}
-```
-
-The headline number is always the blind pass. If a revealed pass exists, the share of labels that
-moved, and how many moved toward the judge, is reported beside it, because anchoring is a finding.
-
-## Number discipline
-
-Agreement is chance-corrected, with a bootstrap interval and the prevalence beside it. Raw
-agreement is computed and labelled `raw_agreement_do_not_report`. Faithfulness is the share of
-claims verified by code, bootstrapped over items, with refuted and unresolved shares beside it.
-Counts are counts.
+The `api` extra adds the Anthropic client for `assay score --model`.
 
 ## Consumers
 
 | Project | Uses |
 |---|---|
-| [pit-wall](https://github.com/zacharygking/pit-wall) | the grading tool and judge validation for the agent's reasons; `mine` for the strategist's training plans |
-
-Planned: an F1 commentator trained on mined lines, NFL recaps with claim checks, a localization
-linter graded against human fixes. Each keeps its paydirt in its own repo.
+| [nba-trade-desk](https://github.com/zacharygking/nba-trade-desk) | The gate: publishes a trajectories dataset, reads the graded one back. |
+| pit-wall | Planned: the engine for commentary synthesis, the gate before publishing. |
 
 ## Conventions
 
-Semantic versions on git tags with a changelog. Consumers pin a tag and install from GitHub:
-
-```
-uv pip install "motherlode @ git+https://github.com/zacharygking/motherlode@v0.1.0"
-```
-
-Code moves into this repo when a second project calls it, not before. Teacher adapters for hosted
-models arrive with the first project that mines against one; `ScriptedTeacher` covers tests and
-dry runs until then.
+Semantic versions on git tags, with `CHANGELOG.md`. Consumers pin a tag. Paydirt and labels live
+with the project that produced or asked for them, never here. Code moves into this repo when a
+second project calls it, not before.
