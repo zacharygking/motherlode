@@ -1,10 +1,11 @@
 # motherlode
 
-Mine it, bite it, pan it, keep the paydirt.
+Mine it, prove it, pan it, keep the paydirt.
 
 A synthetic data engine for ML projects. `mine` generates a set from a teacher or a source,
-`bite` makes a sample prove it is real, the way prospectors bit a nugget, by checking it against
-ground truth and validating any judge against human labels, and `pan` keeps what passed. The
+`prove` makes a sample prove itself, the way a reserve is proven before anyone mines it, by
+checking it against ground truth and validating any judge against human labels, and `pan` keeps
+what passed. The
 output is the **paydirt**; the rejects are the **tailings**, kept with their reasons.
 
 Everything here is domain-agnostic. The checkers, prompts, rubrics and data live with the project
@@ -27,7 +28,7 @@ uv venv --python 3.12 .venv && uv pip install -e ".[dev]"
 .venv/bin/python -m pytest -q
 
 # validate a judge against a human's labels; write the disagreements to adjudicate
-motherlode bite --human labels-zachary.jsonl --judge labels-judge.jsonl --adjudication adjudicate.jsonl
+motherlode prove --human labels-zachary.jsonl --judge labels-judge.jsonl --adjudication adjudicate.jsonl
 
 # build a grading tool from items and a rubric
 motherlode grade --items reasons.jsonl --rubric RUBRIC.md --out grade.html \
@@ -37,7 +38,7 @@ motherlode grade --items reasons.jsonl --rubric RUBRIC.md --out grade.html \
 motherlode mine specs.commentary:spec --teacher specs.commentary:teacher --out runs/commentary
 ```
 
-`check` is accepted as an alias of `bite`.
+`check` is accepted as an alias of `prove`.
 
 ## Label files
 
