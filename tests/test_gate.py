@@ -1,4 +1,4 @@
-"""The gate end to end on a toy dataset: items in, pool, scores, handpick, prospect, paydirt."""
+"""The gate end to end on a toy dataset: items in, mask, survey, handpick, prospect, paydirt."""
 import json
 import math
 from pathlib import Path
@@ -52,14 +52,14 @@ def test_rubric_spec_and_parser():
     assert single.ids == ["label"] and single.dimension("label").check("sound") == "sound"
 
 
-def test_pool_and_survey(tmp_path):
+def test_mask_and_survey(tmp_path):
     ds = make_items_dataset(tmp_path)
     ws = tmp_path / "ws"
-    m = assay.pool(ds, ws)
+    m = assay.mask(ds, ws)
     assert len(m["keys"]) == 6 and all(len(k) == 8 for k in m["keys"])
-    assert m["keys"] == assay.pool(ds, tmp_path / "ws2")["keys"]     # deterministic
+    assert m["keys"] == assay.mask(ds, tmp_path / "ws2")["keys"]     # deterministic
     key = next(iter(m["keys"]))
-    assert (ws / "pool" / f"{key}.md").read_text().startswith("item ")
+    assert (ws / "items" / f"{key}.md").read_text().startswith("item ")
     rows = assay.record(ws, key, "judge-a", '{"D1": {"score": 1, "rationale": "r"}, "D2": {"score": "NA"}}')
     assert {r["dimension"] for r in rows} == {"D1", "D2"} and rows[0]["item_id"] == m["keys"][key]
     assert rows[0]["rubric_hash"] == ds.rubric().hash and rows[0]["key"] == key
@@ -136,13 +136,13 @@ def test_prospect_per_dimension_with_truth_and_reveal(tmp_path):
 def test_cli_end_to_end(tmp_path, capsys, monkeypatch):
     ds = make_items_dataset(tmp_path, 4)
     ws = tmp_path / "ws"
-    cli.main(["pool", "--dataset", str(ds.path), "--out", str(ws)])
+    cli.main(["mask", "--dataset", str(ds.path), "--out", str(ws)])
     keys = json.loads((ws / "manifest.json").read_text())["keys"]
     for key, item_id in keys.items():
         d1 = next(it for it in ds.items() if it["id"] == item_id)["truth"]["D1"]
-        cli.main(["survey", "--pool", str(ws), "--key", key, "--rater", "judge",
+        cli.main(["survey", "--masked", str(ws), "--key", key, "--rater", "judge",
                   "--scores", json.dumps({"D1": {"score": d1, "rationale": "ok"}, "D2": {"score": "1"}})])
-    cli.main(["handpick", "--dataset", str(ds.path), "--pool", str(ws), "--out", str(tmp_path / "g.html"),
+    cli.main(["handpick", "--dataset", str(ds.path), "--masked", str(ws), "--out", str(tmp_path / "g.html"),
               "--context", "packet", "--rater", "z", "--title", "toy"])
     assert "1: ok" not in (tmp_path / "g.html").read_text()
     human = tmp_path / "labels-z.jsonl"
@@ -153,7 +153,7 @@ def test_cli_end_to_end(tmp_path, capsys, monkeypatch):
               "--adjudication", str(tmp_path / "adj.jsonl")])
     out = capsys.readouterr().out
     assert "D1" in out and "D2" in out
-    cli.main(["paydirt", "--dataset", str(ds.path), "--pool", str(ws), "--human", str(human), "--out", str(tmp_path / "graded")])
+    cli.main(["paydirt", "--dataset", str(ds.path), "--masked", str(ws), "--human", str(human), "--out", str(tmp_path / "graded")])
     g = read_dataset(tmp_path / "graded")
     assert g.schema == "graded-v1" and g.manifest["sources"][0]["dataset_sha256"] == ds.hash
     assert (g.path / "validation.json").exists() and (g.path / "labels" / "labels-z.jsonl").exists()

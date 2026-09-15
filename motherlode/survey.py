@@ -1,13 +1,13 @@
-"""Pool and survey: the machine judge over an items dataset.
+"""Mask and survey: the machine judge over an items dataset.
 
-``pool`` writes every item's text under an opaque key with the rubric and grading instructions,
+``mask`` writes every item's text under an opaque key with the rubric and grading instructions,
 so a grader, a person or a model, cannot tell where an item came from. ``survey`` records one
 grader's scores for a key, or asks an API model for them, and appends dimensioned label rows to
-``judgments.jsonl`` in the pool. Nothing here knows what the items are about.
+``judgments.jsonl`` in the masked directory. Nothing here knows what the items are about.
 
-    motherlode pool   --dataset datasets/trajectories --out work/pool
-    motherlode survey --pool work/pool --key 3f2a9c1e --rater claude-code:opus --scores '<json>'
-    motherlode survey --pool work/pool --model claude-opus-5          # every unscored key
+    motherlode mask   --dataset datasets/trajectories --out work/masked
+    motherlode survey --masked work/masked --key 3f2a9c1e --rater claude-code:opus --scores '<json>'
+    motherlode survey --masked work/masked --model claude-opus-5          # every unscored key
 """
 
 from __future__ import annotations
@@ -33,10 +33,10 @@ def item_key(dataset_hash: str, item_id: str) -> str:
     return hashlib.sha256(f"{dataset_hash}|{item_id}".encode()).hexdigest()[:8]
 
 
-def pool(dataset: Dataset, out_dir: Path | str, ids: list[str] | None = None) -> dict:
+def mask(dataset: Dataset, out_dir: Path | str, ids: list[str] | None = None) -> dict:
     spec = dataset.rubric()
     out = Path(out_dir)
-    (out / "pool").mkdir(parents=True, exist_ok=True)
+    (out / "items").mkdir(parents=True, exist_ok=True)
     (out / "RUBRIC.md").write_text(spec.text, encoding="utf-8")
     (out / "INSTRUCTIONS.md").write_text(INSTRUCTIONS + "\n\nDimensions and scales:\n" + "\n".join(
         f"- {d.id} {d.name}: {list(d.scale)}{' or NA' if d.na_allowed else ''}" for d in spec.dimensions) + "\n",
@@ -46,7 +46,7 @@ def pool(dataset: Dataset, out_dir: Path | str, ids: list[str] | None = None) ->
         if ids and str(it["id"]) not in ids:
             continue
         key = item_key(dataset.hash, str(it["id"]))
-        (out / "pool" / f"{key}.md").write_text(it["text"], encoding="utf-8")
+        (out / "items" / f"{key}.md").write_text(it["text"], encoding="utf-8")
         manifest["keys"][key] = str(it["id"])
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1) + "\n", encoding="utf-8")
     return manifest
@@ -57,10 +57,10 @@ def _workspace(ws: Path | str) -> tuple[Path, dict, Dataset, RubricSpec]:
     manifest = json.loads((w / "manifest.json").read_text(encoding="utf-8"))
     ds = read_dataset(manifest["dataset"]["path"])
     if ds.hash != manifest["dataset"]["dataset_sha256"]:
-        raise ValueError("the items dataset changed since this workspace was pooled")
+        raise ValueError("the items dataset changed since it was masked")
     spec = ds.rubric()
     if spec.hash != manifest["rubric_hash"]:
-        raise ValueError("the rubric changed since this workspace was pooled")
+        raise ValueError("the rubric changed since the dataset was masked")
     return w, manifest, ds, spec
 
 
@@ -89,7 +89,7 @@ def score_with_model(ws: Path | str, model: str, keys: list[str] | None = None, 
     instructions = (w / "INSTRUCTIONS.md").read_text(encoding="utf-8")
     n = 0
     for key in todo:
-        text = (w / "pool" / f"{key}.md").read_text(encoding="utf-8")
+        text = (w / "items" / f"{key}.md").read_text(encoding="utf-8")
         prompt = f"{instructions}\n\n## Rubric\n{spec.text}\n\n## Item\n{text}"
         resp = client.messages.create(model=model, max_tokens=max_tokens, messages=[{"role": "user", "content": prompt}])
         reply = "".join(b.text for b in resp.content if b.type == "text")

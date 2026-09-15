@@ -2,7 +2,7 @@
 
 Two halves in one library, both domain-free.
 
-The gate: ``rubric`` (a rubric's text plus the spec of its dimensions), ``survey`` (``pool`` blinds an items
+The gate: ``rubric`` (a rubric's text plus the spec of its dimensions), ``survey`` (``mask`` blinds an items
 dataset, ``survey`` is the machine judge over it), ``grading`` (``handpick``, the local tool a person uses to
 label items blind, every dimension on one page), ``judge`` (``prospect``: kappa per dimension
 with intervals, weighted for ordinal scales, ground truth as a rater, adjudication), and
@@ -23,7 +23,7 @@ from .rubric import Dimension, RubricSpec, load_rubric, parse_scores, rubric_has
 from .stats import agreement_report, bootstrap, cohen_kappa, krippendorff_alpha, prevalence, weighted_kappa
 from .synth import MineSpec, ScriptedTeacher, mine, pan
 
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 
 __all__ = [
     "Claim", "Checker", "Verdict", "check_claims", "faithfulness_report",
