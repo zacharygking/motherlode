@@ -52,7 +52,7 @@ def test_rubric_spec_and_parser():
     assert single.ids == ["label"] and single.dimension("label").check("sound") == "sound"
 
 
-def test_assay_pool_and_score(tmp_path):
+def test_pool_and_grade(tmp_path):
     ds = make_items_dataset(tmp_path)
     ws = tmp_path / "ws"
     m = assay.pool(ds, ws)

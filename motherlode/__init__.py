@@ -1,4 +1,4 @@
-"""Motherlode: prospect it, mine it, pan it, assay and handpick the rest, keep the paydirt.
+"""Motherlode: prospect it, mine it, pan it, grade and handpick the rest, keep the paydirt.
 
 Two halves in one library, both domain-free.
 
