@@ -158,3 +158,22 @@ def test_cli_end_to_end(tmp_path, capsys, monkeypatch):
     assert g.schema == "graded-v1" and g.manifest["sources"][0]["dataset_sha256"] == ds.hash
     assert (g.path / "validation.json").exists() and (g.path / "labels" / "labels-z.jsonl").exists()
     assert len(read_jsonl(g.path / "truth.jsonl")) == 4
+
+
+def test_dataset_seal_and_verify_cli(tmp_path, capsys):
+    d = tmp_path / "raw"
+    d.mkdir()
+    (d / "items.jsonl").write_text(json.dumps({"id": "a", "text": "line one\nline two", "truth": {"D1": "1"}}) + "\n")
+    (d / "rubric.md").write_text(RUBRIC)
+    (d / "rubric.json").write_text(json.dumps(SPEC))
+    cli.main(["dataset", "seal", str(d), "--name", "raw", "--schema", "items-v1", "--producer", "test",
+              "--source", "snapshot=abc123", "--meta", '{"note": 1}'])
+    ds = read_dataset(d)
+    assert set(ds.manifest["files"]) == {"items.jsonl", "rubric.md", "rubric.json"}
+    assert ds.manifest["sources"] == [{"name": "snapshot", "dataset_sha256": "abc123"}] and ds.manifest["meta"] == {"note": 1}
+    assert cli.main(["dataset", "verify", str(d)]) == 0
+    (d / "rubric.md").write_text("changed")
+    assert cli.main(["dataset", "verify", str(d)]) == 1
+    # multi-line text renders preformatted in the tool
+    out = build_grading_tool(ds.items(), ds.rubric(), tmp_path / "g.html", rater="z")
+    assert 'it.text.includes("\\n")' in out.read_text()

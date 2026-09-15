@@ -139,7 +139,7 @@ function complete(rec){ return P.dimensions.every(d => rec.blind && rec.blind[d.
 function render(){
   const it = P.items[order[pos]]; const rec = store[it.id] || {blind:{}, revealed:{}};
   const el = document.getElementById("item"); let h = "";
-  h += `<div class="card"><p class="k">Item ${pos+1} of ${P.items.length}</p><div class="text">${esc(it.text)}</div></div>`;
+  h += `<div class="card"><p class="k">Item ${pos+1} of ${P.items.length}</p>` + (it.text.includes("\n") ? `<pre>${esc(it.text)}</pre>` : `<div class="text">${esc(it.text)}</div>`) + `</div>`;
   for (const k of P.context_keys) { if (it[k]) h += `<div class="card"><p class="k">${esc(k.replace(/_/g," "))}</p><pre>${esc(it[k])}</pre></div>`; }
   h += `<div class="card"><p class="k">Blind labels</p>`;
   for (const d of P.dimensions) {

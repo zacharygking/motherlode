@@ -11,6 +11,9 @@
                       [--adjudication out.jsonl]                                       validate the judge, per dimension
   motherlode paydirt --dataset <items dataset> --workspace <ws> --human labels.jsonl ... --out <graded dataset>
                                                                                       the graded dataset, hashed to its source
+  motherlode dataset seal <dir> --name NAME --schema items-v1 [--producer P] [--source name=hash ...]
+                                                                                      write the manifest for files a producer put in <dir>
+  motherlode dataset verify <dir>                                                     check every hash
 
 Single-label use still works: handpick --items items.jsonl --rubric RUBRIC.md --labels a b c, and
 prospect --human --judge on files without a dimension field.
@@ -26,7 +29,7 @@ import sys
 from pathlib import Path
 
 from . import assay
-from .dataset import read_dataset, read_jsonl, truth_rows, write_dataset, write_jsonl
+from .dataset import read_dataset, read_jsonl, seal_dataset, truth_rows, verify_dataset, write_dataset, write_jsonl
 from .grading import build_grading_tool
 from .judge import adjudication_template, read_labels, summary_table, validate, validate_judge
 from .rubric import load_rubric
@@ -88,6 +91,13 @@ def main(argv: list[str] | None = None) -> int:
         s.add_argument("--rater"); s.add_argument("--judge-rater")
         s.add_argument("--adjudication", help="write a disagreement file to fill in")
         s.add_argument("--json", action="store_true", help="print the full report as JSON")
+
+    d = sub.add_parser("dataset", help="seal or verify a dataset directory")
+    dsub = d.add_subparsers(dest="dataset_cmd", required=True)
+    dseal = dsub.add_parser("seal"); dseal.add_argument("dir"); dseal.add_argument("--name", required=True)
+    dseal.add_argument("--schema", required=True); dseal.add_argument("--producer", default="")
+    dseal.add_argument("--source", nargs="*", default=[], help="name=hash pairs"); dseal.add_argument("--meta", help="JSON object")
+    dver = dsub.add_parser("verify"); dver.add_argument("dir")
 
     s = sub.add_parser("paydirt", help="assemble the graded dataset from a workspace and label files")
     s.add_argument("--dataset", required=True); s.add_argument("--workspace", required=True)
@@ -166,6 +176,19 @@ def main(argv: list[str] | None = None) -> int:
             rows = adjudication_template(human, judge, human_rater=a.rater, judge_rater=a.judge_rater)
             write_jsonl(rows, a.adjudication)
             print(f"{len(rows)} disagreements written to {a.adjudication}", file=sys.stderr)
+    elif a.cmd == "dataset":
+        if a.dataset_cmd == "seal":
+            sources = []
+            for pair in a.source:
+                name, _, h = pair.partition("=")
+                sources.append({"name": name, "dataset_sha256": h})
+            ds = seal_dataset(a.dir, a.name, a.schema, producer=a.producer, sources=sources,
+                              meta=json.loads(a.meta) if a.meta else None)
+            print(f"sealed {ds.name} ({ds.hash}): {len(ds.manifest['files'])} files")
+        else:
+            problems = verify_dataset(read_dataset(a.dir, verify=False))
+            print("ok" if not problems else "\n".join(problems))
+            return 0 if not problems else 1
     elif a.cmd == "paydirt":
         ds = read_dataset(a.dataset)
         ws = Path(a.workspace)

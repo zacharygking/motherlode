@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.1
+
+- `dataset seal` writes the manifest for files a producer put in a directory, and `dataset
+  verify` checks the hashes, so a project can produce a dataset without importing anything.
+- `handpick` renders multi-line item text preformatted.
+
 ## v0.2.0
 
 The gate becomes a first-class half of the library, and projects talk to motherlode through

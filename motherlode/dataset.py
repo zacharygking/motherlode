@@ -111,6 +111,33 @@ def write_dataset(out_dir: Path | str, name: str, schema: str, *, items: Iterabl
     return Dataset(out, manifest)
 
 
+def seal_dataset(dir_: Path | str, name: str, schema: str, *, producer: str = "", sources: list[dict] | None = None,
+                 meta: dict | None = None, version: str = "1") -> Dataset:
+    """Write the manifest for files a producer already put in the directory. This is how a
+    project that does not import motherlode produces a dataset: write the files, then seal."""
+    if schema not in SCHEMAS:
+        raise ValueError(f"unknown schema {schema!r}; known: {SCHEMAS}")
+    d = Path(dir_)
+    files = {}
+    for f in sorted(d.rglob("*")):
+        if f.is_file() and f.name != "manifest.json" and not f.name.startswith("."):
+            files[str(f.relative_to(d)).replace("\\", "/")] = file_hash(f)
+    if schema == "items-v1":
+        if "items.jsonl" not in files:
+            raise ValueError("items-v1 needs items.jsonl")
+        for r in read_jsonl(d / "items.jsonl"):
+            if "id" not in r or "text" not in r:
+                raise ValueError("every item needs an id and a text")
+    manifest = {
+        "name": name, "schema": schema, "version": version,
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "producer": producer, "sources": sources or [], "files": files,
+        "dataset_sha256": _dataset_hash(files), "meta": meta or {},
+    }
+    (d / "manifest.json").write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    return Dataset(d, manifest)
+
+
 def read_dataset(path: Path | str, verify: bool = True) -> Dataset:
     p = Path(path)
     manifest = json.loads((p / "manifest.json").read_text(encoding="utf-8"))

@@ -42,6 +42,10 @@ motherlode prospect --dataset datasets/trajectories-v6 --human work/labels-zacha
 motherlode paydirt --dataset datasets/trajectories-v6 --workspace work/assay --human work/labels-zachary.jsonl --out datasets/trajectories-v6-graded
 ```
 
+A producer that imports nothing writes `items.jsonl`, `rubric.md` and `rubric.json` into a
+directory and runs `motherlode dataset seal <dir> --name ... --schema items-v1`; `motherlode
+dataset verify <dir>` checks the hashes.
+
 `prospect` prints one line per dimension: n, items excluded as NA, kappa with its interval,
 linear weighted kappa for ordinal scales, and agreement with ground truth where it exists. The
 headline is always the blind pass; a revised pass after seeing the judge is reported beside it.
