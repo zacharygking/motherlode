@@ -1,4 +1,6 @@
-# motherlode
+# Motherlode
+
+[![tests](https://github.com/zacharygking/motherlode/actions/workflows/tests.yml/badge.svg)](https://github.com/zacharygking/motherlode/actions/workflows/tests.yml)
 
 Prospect it, mine it, pan it, handpick the rest, keep the paydirt.
 
