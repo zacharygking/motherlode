@@ -1,0 +1,22 @@
+[project]
+name = "motherlode"
+version = "0.1.0"
+description = "Synthetic data engine for ML projects. Mine training, eval and RL datasets, check every sample against ground truth, keep the paydirt."
+requires-python = ">=3.12"
+dependencies = ["numpy>=2.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+motherlode = "motherlode.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["motherlode*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
