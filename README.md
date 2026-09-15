@@ -82,5 +82,3 @@ uv pip install "motherlode @ git+https://github.com/zacharygking/motherlode@v0.1
 Code moves into this repo when a second project calls it, not before. Teacher adapters for hosted
 models arrive with the first project that mines against one; `ScriptedTeacher` covers tests and
 dry runs until then.
-
-MIT.
