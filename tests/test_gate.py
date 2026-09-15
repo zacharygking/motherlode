@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from motherlode import assay, cli
+from motherlode import cli, grade as assay
 from motherlode.dataset import read_dataset, read_jsonl, truth_rows, write_dataset
 from motherlode.grading import build_grading_tool
 from motherlode.judge import adjudication_template, validate, validate_judge
@@ -136,13 +136,13 @@ def test_prospect_per_dimension_with_truth_and_reveal(tmp_path):
 def test_cli_end_to_end(tmp_path, capsys, monkeypatch):
     ds = make_items_dataset(tmp_path, 4)
     ws = tmp_path / "ws"
-    cli.main(["assay", "pool", "--dataset", str(ds.path), "--out", str(ws)])
+    cli.main(["pool", "--dataset", str(ds.path), "--out", str(ws)])
     keys = json.loads((ws / "manifest.json").read_text())["keys"]
     for key, item_id in keys.items():
         d1 = next(it for it in ds.items() if it["id"] == item_id)["truth"]["D1"]
-        cli.main(["assay", "score", "--workspace", str(ws), "--key", key, "--rater", "judge",
+        cli.main(["grade", "--pool", str(ws), "--key", key, "--rater", "judge",
                   "--scores", json.dumps({"D1": {"score": d1, "rationale": "ok"}, "D2": {"score": "1"}})])
-    cli.main(["handpick", "--dataset", str(ds.path), "--workspace", str(ws), "--out", str(tmp_path / "g.html"),
+    cli.main(["handpick", "--dataset", str(ds.path), "--pool", str(ws), "--out", str(tmp_path / "g.html"),
               "--context", "packet", "--rater", "z", "--title", "toy"])
     assert "1: ok" not in (tmp_path / "g.html").read_text()
     human = tmp_path / "labels-z.jsonl"
@@ -153,7 +153,7 @@ def test_cli_end_to_end(tmp_path, capsys, monkeypatch):
               "--adjudication", str(tmp_path / "adj.jsonl")])
     out = capsys.readouterr().out
     assert "D1" in out and "D2" in out
-    cli.main(["paydirt", "--dataset", str(ds.path), "--workspace", str(ws), "--human", str(human), "--out", str(tmp_path / "graded")])
+    cli.main(["paydirt", "--dataset", str(ds.path), "--pool", str(ws), "--human", str(human), "--out", str(tmp_path / "graded")])
     g = read_dataset(tmp_path / "graded")
     assert g.schema == "graded-v1" and g.manifest["sources"][0]["dataset_sha256"] == ds.hash
     assert (g.path / "validation.json").exists() and (g.path / "labels" / "labels-z.jsonl").exists()

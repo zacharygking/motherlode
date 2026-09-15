@@ -2,14 +2,14 @@
 
   motherlode mine  spec_module:spec --teacher spec_module:teacher --out runs/x       generate a set
   motherlode pan   --source runs/x/paydirt.jsonl --checks spec_module:checks --out runs/y
-  motherlode assay pool  --dataset <items dataset> --out <workspace>                  blind packets for a judge
-  motherlode assay score --workspace <ws> --key K --rater NAME --scores '<json>'      record a grader's scores
-  motherlode assay score --workspace <ws> --model claude-opus-5                       grade every unscored key
+  motherlode pool  --dataset <items dataset> --out <pool>                             blind packets for a judge
+  motherlode grade --pool <pool> --key K --rater NAME --scores '<json>'               record a grader's scores
+  motherlode grade --pool <pool> --model claude-opus-5                                grade every unscored key
   motherlode handpick --dataset <items dataset> --out grade.html --rater NAME          the blind hand-grading tool
-                      [--workspace <ws>]  hides that workspace's judgments per dimension until commit
-  motherlode prospect --dataset <items dataset> --human labels.jsonl --judge <ws>/judgments.jsonl
+                      [--pool <pool>]  hides that pool's judgments per dimension until commit
+  motherlode prospect --dataset <items dataset> --human labels.jsonl --judge <pool>/judgments.jsonl
                       [--adjudication out.jsonl]                                       validate the judge, per dimension
-  motherlode paydirt --dataset <items dataset> --workspace <ws> --human labels.jsonl ... --out <graded dataset>
+  motherlode paydirt --dataset <items dataset> --pool <pool> --human labels.jsonl ... --out <graded dataset>
                                                                                       the graded dataset, hashed to its source
   motherlode dataset seal <dir> --name NAME --schema items-v1 [--producer P] [--source name=hash ...]
                                                                                       write the manifest for files a producer put in <dir>
@@ -17,7 +17,7 @@
 
 Single-label use still works: handpick --items items.jsonl --rubric RUBRIC.md --labels a b c, and
 prospect --human --judge on files without a dimension field.
-``grade`` and ``check`` remain as aliases of ``handpick`` and ``prospect``.
+``check`` remains as an alias of ``prospect``.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import assay
+from . import grade
 from .dataset import read_dataset, read_jsonl, seal_dataset, truth_rows, verify_dataset, write_dataset, write_jsonl
 from .grading import build_grading_tool
 from .judge import adjudication_template, read_labels, summary_table, validate, validate_judge
@@ -45,7 +45,7 @@ def _load(ref: str):
 
 
 def _judgment_hidden(ws: Path, dataset_hash: str) -> dict[str, dict]:
-    """item id -> {judge_<dim>: 'label: rationale'} from a workspace's judgments."""
+    """item id -> {judge_<dim>: 'label: rationale'} from a pool's judgments."""
     p = ws / "judgments.jsonl"
     out: dict[str, dict] = {}
     if not p.exists():
@@ -57,7 +57,7 @@ def _judgment_hidden(ws: Path, dataset_hash: str) -> dict[str, dict]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="motherlode", description="Prospect it, mine it, pan it, assay and handpick the rest, keep the paydirt.")
+    p = argparse.ArgumentParser(prog="motherlode", description="Prospect it, mine it, pan it, grade and handpick the rest, keep the paydirt.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("mine", help="generate a set from a spec and a teacher")
@@ -66,20 +66,20 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("pan", help="re-filter an existing set under checks")
     s.add_argument("--source", required=True); s.add_argument("--checks", required=True); s.add_argument("--out", required=True)
 
-    a = sub.add_parser("assay", help="the machine judge over an items dataset")
-    asub = a.add_subparsers(dest="assay_cmd", required=True)
-    ap = asub.add_parser("pool"); ap.add_argument("--dataset", required=True); ap.add_argument("--out", required=True)
+    ap = sub.add_parser("pool", help="blind an items dataset under opaque keys for a judge")
+    ap.add_argument("--dataset", required=True); ap.add_argument("--out", required=True)
     ap.add_argument("--ids", nargs="*", default=None)
-    asc = asub.add_parser("score"); asc.add_argument("--workspace", required=True)
+    asc = sub.add_parser("grade", help="the machine judge: record a grader's scores for a key, or grade with an API model")
+    asc.add_argument("--pool", required=True)
     asc.add_argument("--key"); asc.add_argument("--rater"); asc.add_argument("--scores")
     asc.add_argument("--model"); asc.add_argument("--keys", nargs="*", default=None)
 
-    for name in ("handpick", "grade"):
+    for name in ("handpick",):
         s = sub.add_parser(name, help="build the local tool for labeling items by hand, blind and assisted")
         s.add_argument("--dataset"); s.add_argument("--items"); s.add_argument("--rubric"); s.add_argument("--spec")
         s.add_argument("--out", required=True); s.add_argument("--labels", nargs="+")
         s.add_argument("--context", nargs="*", default=None); s.add_argument("--hidden", nargs="*", default=[])
-        s.add_argument("--workspace", help="hide this workspace's judgments per dimension until commit")
+        s.add_argument("--pool", help="hide this pool's judgments per dimension until commit")
         s.add_argument("--ids", nargs="*", default=None)
         s.add_argument("--rater", default="rater"); s.add_argument("--title", default="Handpick"); s.add_argument("--seed", type=int, default=0)
 
@@ -100,7 +100,7 @@ def main(argv: list[str] | None = None) -> int:
     dver = dsub.add_parser("verify"); dver.add_argument("dir")
 
     s = sub.add_parser("paydirt", help="assemble the graded dataset from a workspace and label files")
-    s.add_argument("--dataset", required=True); s.add_argument("--workspace", required=True)
+    s.add_argument("--dataset", required=True); s.add_argument("--pool", required=True)
     s.add_argument("--human", nargs="*", default=[]); s.add_argument("--out", required=True)
     s.add_argument("--name"); s.add_argument("--producer", default="motherlode")
 
@@ -110,27 +110,27 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(mine(_load(a.spec), _load(a.teacher), a.out, limit=a.limit), indent=2))
     elif a.cmd == "pan":
         print(json.dumps(pan(a.source, a.out, _load(a.checks)), indent=2))
-    elif a.cmd == "assay":
-        if a.assay_cmd == "pool":
-            m = assay.pool(read_dataset(a.dataset), a.out, a.ids)
-            print(f"pooled {len(m['keys'])} items into {a.out} (rubric {m['rubric_hash']})")
-        elif a.model:
-            n = assay.score_with_model(a.workspace, a.model, a.keys)
-            print(f"scored {n} items with {a.model}")
+    elif a.cmd == "pool":
+        m = grade.pool(read_dataset(a.dataset), a.out, a.ids)
+        print(f"pooled {len(m['keys'])} items into {a.out} (rubric {m['rubric_hash']})")
+    elif a.cmd == "grade":
+        if a.model:
+            n = grade.score_with_model(a.pool, a.model, a.keys)
+            print(f"graded {n} items with {a.model}")
         else:
             if not (a.key and a.rater and a.scores):
-                raise SystemExit("assay score needs --key, --rater and --scores, or --model")
-            rows = assay.record(a.workspace, a.key, a.rater, a.scores)
+                raise SystemExit("grade needs --key, --rater and --scores, or --model")
+            rows = grade.record(a.pool, a.key, a.rater, a.scores)
             print(f"recorded {a.key} by {a.rater}: " + " ".join(f"{r['dimension']}={r['label']}" for r in rows))
-    elif a.cmd in ("handpick", "grade"):
+    elif a.cmd == "handpick":
         if a.dataset:
             ds = read_dataset(a.dataset)
             spec = ds.rubric()
             items = [it for it in ds.items() if not a.ids or str(it["id"]) in a.ids]
             context = a.context if a.context is not None else []
             hidden_prefix = None
-            if a.workspace:
-                hid = _judgment_hidden(Path(a.workspace), ds.hash)
+            if a.pool:
+                hid = _judgment_hidden(Path(a.pool), ds.hash)
                 for it in items:
                     it.update(hid.get(str(it["id"]), {}))
                 hidden_prefix = "judge_"
@@ -191,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if not problems else 1
     elif a.cmd == "paydirt":
         ds = read_dataset(a.dataset)
-        ws = Path(a.workspace)
+        ws = Path(a.pool)
         spec = ds.rubric()
         judge = read_jsonl(ws / "judgments.jsonl") if (ws / "judgments.jsonl").exists() else []
         human = [r for f in a.human for r in read_labels(f)]
