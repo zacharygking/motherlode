@@ -1,12 +1,13 @@
 # motherlode
 
-Prospect it, mine it, pan it, keep the paydirt.
+Prospect it, mine it, pan it, handpick the rest, keep the paydirt.
 
 A synthetic data engine for ML projects, in mining order. `prospect` validates the judge and the
 checkers on a hand-labeled sample, so you know the quality gate works before generating at scale.
 `mine` generates a set from a teacher or a source. `pan` runs every sample through the checkers
-and keeps what passed. The output is the **paydirt**; the rejects are the **tailings**, kept with
-their reasons.
+and keeps what passed. `handpick` builds the tool a person uses to label samples by hand, blind
+and assisted, which is where the labels that prospect needs come from. The output is the
+**paydirt**; the rejects are the **tailings**, kept with their reasons.
 
 Everything here is domain-agnostic. The checkers, prompts, rubrics and data live with the project
 that mines them. A shared library that knows what a tyre compound is has failed at its one job.
@@ -30,15 +31,15 @@ uv venv --python 3.12 .venv && uv pip install -e ".[dev]"
 # prospect: validate a judge against a human's labels; write the disagreements to adjudicate
 motherlode prospect --human labels-zachary.jsonl --judge labels-judge.jsonl --adjudication adjudicate.jsonl
 
-# build a grading tool from items and a rubric
-motherlode grade --items reasons.jsonl --rubric RUBRIC.md --out grade.html \
+# handpick: build the tool for labeling samples by hand
+motherlode handpick --items reasons.jsonl --rubric RUBRIC.md --out grade.html \
   --labels sound unsupported "wrong facts" vacuous --context fact_sheet brief --hidden judge_label judge_rationale --rater zachary
 
 # mine a set: a spec and a teacher are Python objects in your project
 motherlode mine specs.commentary:spec --teacher specs.commentary:teacher --out runs/commentary
 ```
 
-`check` is accepted as an alias of `prospect`.
+`check` is accepted as an alias of `prospect`, and `grade` of `handpick`.
 
 ## Label files
 

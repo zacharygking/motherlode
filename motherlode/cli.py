@@ -3,7 +3,9 @@
   motherlode mine  spec_module:spec --teacher spec_module:teacher --out runs/x    generate a set
   motherlode prospect --human labels.jsonl --judge judge.jsonl [--rater NAME]     validate the judge on a labeled sample
   motherlode pan   --source runs/x/paydirt.jsonl --checks spec_module:checks --out runs/y
-  motherlode grade --items items.jsonl --rubric RUBRIC.md --out grade.html --labels a b c ...
+  motherlode handpick --items items.jsonl --rubric RUBRIC.md --out grade.html --labels a b c ...
+
+``grade`` is accepted as an alias of ``handpick``.
 
 ``check`` is accepted as an alias of ``prospect``.
 """
@@ -29,8 +31,15 @@ def _load(ref: str):
     return getattr(importlib.import_module(mod), name)
 
 
+def _grade_args(s: argparse.ArgumentParser) -> None:
+    s.add_argument("--items", required=True); s.add_argument("--rubric", required=True); s.add_argument("--out", required=True)
+    s.add_argument("--labels", nargs="+", required=True); s.add_argument("--context", nargs="*", default=[])
+    s.add_argument("--hidden", nargs="*", default=[]); s.add_argument("--rater", default="rater"); s.add_argument("--title", default="Handpick")
+    s.add_argument("--seed", type=int, default=0)
+
+
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="motherlode", description="Prospect it, mine it, pan it, keep the paydirt.")
+    p = argparse.ArgumentParser(prog="motherlode", description="Prospect it, mine it, pan it, handpick the rest, keep the paydirt.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("mine", help="generate a set from a spec and a teacher")
@@ -44,11 +53,9 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("pan", help="re-filter an existing set under checks")
     s.add_argument("--source", required=True); s.add_argument("--checks", required=True); s.add_argument("--out", required=True)
 
-    s = sub.add_parser("grade", help="build a local grading tool")
-    s.add_argument("--items", required=True); s.add_argument("--rubric", required=True); s.add_argument("--out", required=True)
-    s.add_argument("--labels", nargs="+", required=True); s.add_argument("--context", nargs="*", default=[])
-    s.add_argument("--hidden", nargs="*", default=[]); s.add_argument("--rater", default="rater"); s.add_argument("--title", default="Grading")
-    s.add_argument("--seed", type=int, default=0)
+    for name in ("handpick", "grade"):
+        s = sub.add_parser(name, help="build the local tool for labeling samples by hand, blind and assisted")
+        _grade_args(s)
 
     a = p.parse_args(argv)
     if a.cmd == "mine":
@@ -63,7 +70,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{len(rows)} disagreements written to {a.adjudication}", file=sys.stderr)
     elif a.cmd == "pan":
         print(json.dumps(pan(a.source, a.out, _load(a.checks)), indent=2))
-    elif a.cmd == "grade":
+    elif a.cmd in ("handpick", "grade"):
         items = read_labels(a.items)
         out = build_grading_tool(items, Path(a.rubric).read_text(encoding="utf-8"), a.out, labels=a.labels,
                                  context_keys=a.context, hidden_keys=a.hidden, rater=a.rater, title=a.title, seed=a.seed)
