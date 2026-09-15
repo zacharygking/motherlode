@@ -69,7 +69,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = sub.add_parser("mask", help="blind an items dataset under opaque keys for a judge")
     ap.add_argument("--dataset", required=True); ap.add_argument("--out", required=True)
     ap.add_argument("--ids", nargs="*", default=None)
-    asc = sub.add_parser("survey", help="the machine judge: record a grader's scores for a key, or survey the pool with an API model")
+    asc = sub.add_parser("survey", help="the machine judge: record a grader's scores for a key, or survey the masked items with an API model")
     asc.add_argument("--masked", required=True)
     asc.add_argument("--key"); asc.add_argument("--rater"); asc.add_argument("--scores")
     asc.add_argument("--model"); asc.add_argument("--keys", nargs="*", default=None)
