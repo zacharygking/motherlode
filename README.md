@@ -2,12 +2,12 @@
 
 [![tests](https://github.com/zacharygking/motherlode/actions/workflows/tests.yml/badge.svg)](https://github.com/zacharygking/motherlode/actions/workflows/tests.yml)
 
-Prospect it, mine it, pan it, grade and handpick the rest, keep the paydirt.
+Prospect it, mine it, pan it, survey and handpick the rest, keep the paydirt.
 
 A data library for ML projects, in two halves, both domain-free.
 
 **The gate** makes a judge's numbers reportable. A rubric is text plus a spec of its dimensions.
-`pool` blinds a dataset of items under opaque keys and `grade` is the machine judge over it. `handpick` is the tool a person uses
+`pool` blinds a dataset of items under opaque keys and `survey` is the machine judge over it. `handpick` is the tool a person uses
 to label a sample by hand, blind and assisted, every dimension on one page. `prospect` is the
 validation: chance-corrected agreement between the person and the judge per dimension, with
 intervals, weighted for ordinal scales, ground truth as just another rater, and a template for
@@ -32,8 +32,8 @@ has failed at its one job.
 # 2. blind packets for the judge
 motherlode pool --dataset datasets/trajectories-v6 --out work/pool
 # 3. score: a grader's JSON per key (a subagent, a person), or an API model over every key
-motherlode grade --pool work/pool --key 3f2a9c1e --rater claude-code:opus --scores '{"D1": {"score": 1, "rationale": "..."}, ...}'
-motherlode grade --pool work/pool --model claude-opus-5
+motherlode survey --pool work/pool --key 3f2a9c1e --rater claude-code:opus --scores '{"D1": {"score": 1, "rationale": "..."}, ...}'
+motherlode survey --pool work/pool --model claude-opus-5
 # 4. the hand-grading tool: every dimension on one page, the judge's score hidden until commit
 motherlode handpick --dataset datasets/trajectories-v6 --pool work/pool --context packet --rater zachary --out work/grade.html
 # 5. validate, per dimension, with ground truth from the dataset as a third rater
@@ -72,7 +72,7 @@ read.
 |---|---|
 | `motherlode.dataset` | Write and read dataset directories with manifests and hashes; JSONL helpers; ground truth as label rows. |
 | `motherlode.rubric` | `RubricSpec`, `rubric_hash`, `parse_scores` with per-dimension NA rules, `score_rows`. |
-| `motherlode.grade` | `pool` and `grade`: the machine judge over an items dataset, blind, deterministic keys; a pool refuses a changed dataset or rubric. |
+| `motherlode.survey` | `pool` and `survey`: the machine judge over an items dataset, blind, deterministic keys; a pool refuses a changed dataset or rubric. |
 | `motherlode.grading` | `build_grading_tool`: one HTML file, no server, every dimension per item, hidden fields revealed after commit, revised labels stored separately, per-tool browser storage, JSONL export. |
 | `motherlode.judge` | `validate` per dimension, `summary_table`, `adjudication_template`; `validate_judge` keeps the v0.1 single-label shape. |
 | `motherlode.stats` | Cohen's kappa, weighted kappa, Krippendorff's alpha with missing values, a paired bootstrap, prevalence, and an agreement report whose raw-agreement field is named so nobody reports it. |
@@ -86,7 +86,7 @@ uv venv --python 3.12 .venv && uv pip install -e ".[dev]"
 .venv/bin/python -m pytest -q
 ```
 
-The `api` extra adds the Anthropic client for `grade --model`.
+The `api` extra adds the Anthropic client for `survey --model`.
 
 ## Consumers
 

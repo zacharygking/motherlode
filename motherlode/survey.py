@@ -1,13 +1,13 @@
-"""Pool and grade: the machine judge over an items dataset.
+"""Pool and survey: the machine judge over an items dataset.
 
 ``pool`` writes every item's text under an opaque key with the rubric and grading instructions,
-so a grader, a person or a model, cannot tell where an item came from. ``grade`` records one
+so a grader, a person or a model, cannot tell where an item came from. ``survey`` records one
 grader's scores for a key, or asks an API model for them, and appends dimensioned label rows to
 ``judgments.jsonl`` in the pool. Nothing here knows what the items are about.
 
-    motherlode pool  --dataset datasets/trajectories --out work/pool
-    motherlode grade --pool work/pool --key 3f2a9c1e --rater claude-code:opus --scores '<json>'
-    motherlode grade --pool work/pool --model claude-opus-5          # every unscored key
+    motherlode pool   --dataset datasets/trajectories --out work/pool
+    motherlode survey --pool work/pool --key 3f2a9c1e --rater claude-code:opus --scores '<json>'
+    motherlode survey --pool work/pool --model claude-opus-5          # every unscored key
 """
 
 from __future__ import annotations

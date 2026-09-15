@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from motherlode import cli, grade as assay
+from motherlode import cli, survey as assay
 from motherlode.dataset import read_dataset, read_jsonl, truth_rows, write_dataset
 from motherlode.grading import build_grading_tool
 from motherlode.judge import adjudication_template, validate, validate_judge
@@ -52,7 +52,7 @@ def test_rubric_spec_and_parser():
     assert single.ids == ["label"] and single.dimension("label").check("sound") == "sound"
 
 
-def test_pool_and_grade(tmp_path):
+def test_pool_and_survey(tmp_path):
     ds = make_items_dataset(tmp_path)
     ws = tmp_path / "ws"
     m = assay.pool(ds, ws)
@@ -140,7 +140,7 @@ def test_cli_end_to_end(tmp_path, capsys, monkeypatch):
     keys = json.loads((ws / "manifest.json").read_text())["keys"]
     for key, item_id in keys.items():
         d1 = next(it for it in ds.items() if it["id"] == item_id)["truth"]["D1"]
-        cli.main(["grade", "--pool", str(ws), "--key", key, "--rater", "judge",
+        cli.main(["survey", "--pool", str(ws), "--key", key, "--rater", "judge",
                   "--scores", json.dumps({"D1": {"score": d1, "rationale": "ok"}, "D2": {"score": "1"}})])
     cli.main(["handpick", "--dataset", str(ds.path), "--pool", str(ws), "--out", str(tmp_path / "g.html"),
               "--context", "packet", "--rater", "z", "--title", "toy"])

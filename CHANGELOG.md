@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.3
+
+- The machine judge is `survey`, since `grade` reads as hand grading too.
+
 ## v0.2.2
 
 - The machine judge is `pool` then `grade`; `assay` is gone. `handpick` and `paydirt` take `--pool`.
@@ -22,8 +26,8 @@ datasets rather than by driving its commands.
 - `rubric`: a rubric is text plus a spec of dimensions, each with a scale, ordinality and whether
   NA is allowed. The hash covers both. A single-label rubric is the one-dimension case and keeps
   its v0.1 hash.
-- `pool` and `grade`: the machine judge. `pool` blinds an items dataset under opaque, deterministic
-  keys; `grade` records a grader's JSON or asks an API model, and appends dimensioned label rows.
+- `pool` and `survey`: the machine judge. `pool` blinds an items dataset under opaque, deterministic
+  keys; `survey` records a grader's JSON or asks an API model, and appends dimensioned label rows.
 - `handpick`: one tool renders every dimension on the item's page; the judge's score per dimension
   hides until the blind labels are committed. Browser storage is keyed per tool, so two tools
   over the same items cannot share state. The glossary heading is a parameter.
